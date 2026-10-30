@@ -21,8 +21,24 @@ import           Common
 -----------------------
 
 -- conversion a términos localmente sin nombres
+--LAbs "x" NatT (LAbs "y" NatT (LApp (LVar "x") (LVar "y")))
+--Lam NatT (Lam NatT (Bound 1 :@: Bound 0))
+--["y","x"]
+--
+conversionAux :: LamTerm -> [String] -> Term
+conversionAux (LAbs s t lt) pila = Lam t (conversionAux lt (s:pila))
+conversionAux (LVar s) pila = case elemIndex s pila of
+                              Nothing -> Free s
+                              Just m -> Bound m 
+conversionAux (LApp t1 t2) pila = (conversionAux t1 pila) :@: (conversionAux t2 pila)
+conversionAux (LLet s t1 t2) pila = Let (conversionAux t1 pila) (conversionAux t2 (s:pila))
+conversionAux (LRec t1 t2 LZero) pila = Rec (conversionAux t1 pila) (conversionAux t2 pila) (conversionAux t3 pila)  
+conversionAux (LZero) pila = Zero 
+conversionAux (LSuc t) pila = Suc (conversionAux t pila)
+conversionAux (LNil) pila = Nil
+conversionAux (LCons t1 t2) pila = Cons (conversionAux t1 pila) (conversionAux t2 pila)
 conversion :: LamTerm -> Term
-conversion = undefined
+conversion t = conversionAux t [] 
 
 ----------------------------
 --- evaluador de términos
