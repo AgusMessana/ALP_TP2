@@ -80,7 +80,7 @@ eval env (Suc t) = case eval env t of
   VNum n -> (VNum (NSuc n))
   _ -> error "eval: tipo incorrecto"
 eval env (Rec t1 t2 Zero) = eval env t1 
-eval env (Rec t1 t2 (Suc t)) =  eval env (t2 :@: ((Rec t1 t2 t) :@: t))
+eval env (Rec t1 t2 (Suc t)) =  eval env (t2 :@: (R t1 t2 t)) :@: t
 
 ----------------------
 --- type checker
