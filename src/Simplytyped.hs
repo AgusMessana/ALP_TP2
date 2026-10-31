@@ -53,10 +53,16 @@ sub _ _ (Free n) = Free n
 sub i t (u :@: v) = sub i t u :@: sub i t v
 sub i t (Lam t' u) = Lam t' (sub (i + 1) t u)
 sub i t (Let t1 t2) = Let (sub i t t1) (sub (i + 1) t t2)
+sub _ _ (Zero) = Zero 
+sub i t (Suc u) = Suc (sub i t u)
+sub i t (Rec t1 t2 t3) =  Rec (sub i t t1) (sub i t t2) (sub i t t3)
 
 -- convierte un valor en el término equivalente
 quote :: Value -> Term
 quote (VLam t f) = Lam t f
+quote (VNum n) = case n of 
+                NZero -> Zero 
+                NSuc m -> Suc (quote (VNum m))
 
 -- evalúa un término en un entorno dado
 eval :: NameEnv Value Type -> Term -> Value
@@ -69,6 +75,12 @@ eval env (Free n) = case lookup n env of
   Just (val, _) -> val
 eval _ (Lam ty te) = VLam ty te
 eval env (Let t1 t2) = let v = eval env t1 in eval env (sub 0 (quote v) t2)
+eval env (Zero) = VNum NZero 
+eval env (Suc t) = case eval env t of
+  VNum n -> (VNum (NSuc n))
+  _ -> error "eval: tipo incorrecto"
+eval env (Rec t1 t2 Zero) = eval env t1 
+eval env (Rec t1 t2 (Suc t)) =  eval env (t2 :@: ((Rec t1 t2 t) :@: t))
 
 ----------------------
 --- type checker
