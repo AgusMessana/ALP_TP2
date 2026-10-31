@@ -81,6 +81,12 @@ eval env (Suc t) = case eval env t of
   _ -> error "eval: tipo incorrecto"
 eval env (Rec t1 t2 Zero) = eval env t1 
 eval env (Rec t1 t2 (Suc t)) =  eval env (t2 :@: (R t1 t2 t)) :@: t
+eval env (Rec t1 t2 t3) = case eval env t3 of 
+                          VNum (NZero)  -> eval env t1 
+                          VNum (NSuc n) ->  let n_anterior = quote (VNum n) 
+                                                recursion = Rec t1 t2 n_anterior
+                                                in eval env ((t2 :@: recursion) :@: n_anterior)
+                            _ -> error "eval: se esperaba un natural"
 
 ----------------------
 --- type checker
@@ -134,3 +140,9 @@ infer' c e (Lam t u) = infer' (t : c) e u >>= \tu -> ret $ FunT t tu
 infer' c e (Let t1 t2) = 
   infer' c e t1 >>= \tt ->
     infer' (tt : c) e t2
+infer' c e Zero = NatT
+infer' c e (Suc n) = case infer' c e n of
+  Right NatT -> Right NatT
+  Right t -> matchError NatT t
+  Left err -> Left err
+infer' c e (Rec t1 t2 t3) =  
