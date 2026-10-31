@@ -28,11 +28,11 @@ import Prelude hiding ((>>=))
 conversionAux :: LamTerm -> [String] -> Term
 conversionAux (LAbs s t lt) pila = Lam t (conversionAux lt (s : pila))
 conversionAux (LVar s) pila = case elemIndex s pila of
-  Nothing -> Free s
+  Nothing -> Free (Global s)
   Just m -> Bound m
 conversionAux (LApp t1 t2) pila = (conversionAux t1 pila) :@: (conversionAux t2 pila)
 conversionAux (LLet s t1 t2) pila = Let (conversionAux t1 pila) (conversionAux t2 (s : pila))
-conversionAux (LRec t1 t2 LZero) pila = Rec (conversionAux t1 pila) (conversionAux t2 pila) (conversionAux t3 pila)
+conversionAux (LRec t1 t2 t3) pila = Rec (conversionAux t1 pila) (conversionAux t2 pila) (conversionAux t3 pila)
 conversionAux (LZero) pila = Zero
 conversionAux (LSuc t) pila = Suc (conversionAux t pila)
 conversionAux (LNil) pila = Nil
@@ -52,6 +52,7 @@ sub _ _ (Bound j) | otherwise = Bound j
 sub _ _ (Free n) = Free n
 sub i t (u :@: v) = sub i t u :@: sub i t v
 sub i t (Lam t' u) = Lam t' (sub (i + 1) t u)
+sub i t (Let t1 t2) = Let (sub i t t1) (sub (i + 1) t t2)
 
 -- convierte un valor en el término equivalente
 quote :: Value -> Term
@@ -67,6 +68,7 @@ eval env (Free n) = case lookup n env of
   Nothing -> error "eval: variable libre no encontrada"
   Just (val, _) -> val
 eval _ (Lam ty te) = VLam ty te
+eval env (Let t1 t2) = let v = eval env t1 in eval env (sub 0 (quote v) t2)
 
 ----------------------
 --- type checker
@@ -117,3 +119,6 @@ infer' c e (t :@: u) =
         FunT t1 t2 -> if (tu == t1) then ret t2 else matchError t1 tu
         _ -> notfunError tt
 infer' c e (Lam t u) = infer' (t : c) e u >>= \tu -> ret $ FunT t tu
+infer' c e (Let t1 t2) = 
+  infer' c e t1 >>= \tt ->
+    infer' (tt : c) e t2
