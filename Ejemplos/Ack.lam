@@ -1,0 +1,6 @@
+def sucesor = \n:Nat. suc n
+
+def subirNivel = \g:Nat->Nat. \p:Nat. \n:Nat.
+    R (g (suc 0)) (\r:Nat. \q:Nat. g r) n
+
+def Ack = \m:Nat. R sucesor subirNivel m
