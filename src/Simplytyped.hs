@@ -37,6 +37,7 @@ conversionAux (LZero) pila = Zero
 conversionAux (LSuc t) pila = Suc (conversionAux t pila)
 conversionAux (LNil) pila = Nil
 conversionAux (LCons t1 t2) pila = Cons (conversionAux t1 pila) (conversionAux t2 pila)
+conversionAux (LRL t1 t2 t3) pila = RL (conversionAux t1 pila) (conversionAux t2 pila) (conversionAux t3 pila)
 
 conversion :: LamTerm -> Term
 conversion t = conversionAux t []
@@ -56,6 +57,9 @@ sub i t (Let t1 t2) = Let (sub i t t1) (sub (i + 1) t t2)
 sub _ _ Zero = Zero
 sub i t (Suc u) = Suc (sub i t u)
 sub i t (Rec t1 t2 t3) = Rec (sub i t t1) (sub i t t2) (sub i t t3)
+sub i t Nil = Nil
+sub i t (Cons t1 t2) = Cons (sub i t t1) (sub i t t2)
+sub i t (RL t1 t2 t3) = RL (sub i t t1) (sub i t t2) (sub i t t3)
 
 -- convierte un valor en el término equivalente
 quote :: Value -> Term
@@ -63,6 +67,9 @@ quote (VLam t f) = Lam t f
 quote (VNum n) = case n of
   NZero -> Zero
   NSuc m -> Suc (quote (VNum m))
+quote (VList lista) = case lista of
+  VNil -> Nil
+  VCons n xs -> Cons (quote (VNum n)) (quote (VList xs))
 
 -- evalúa un término en un entorno dado
 eval :: NameEnv Value Type -> Term -> Value
@@ -86,6 +93,18 @@ eval env (Rec t1 t2 t3) = case eval env t3 of
         recursion = Rec t1 t2 n_anterior
      in eval env ((t2 :@: recursion) :@: n_anterior)
   _ -> error "eval: dato no posible"
+eval env Nil = VList VNil
+eval env (Cons t1 t2) = case (eval env t1, eval env t2)  of
+  (VNum n, VList xs) -> VList (VCons n xs)
+  _ -> error "eval: tipo incorrecto"
+eval env (RL t1 t2 t3) = case eval env t3 of
+  VList VNil -> eval env t1
+  VList (VCons n xs) ->
+    let cabeza = quote (VNum n)
+        list = quote (VList xs)
+        recursion = RL t1 t2 list
+     in eval env ((t2 :@: cabeza) :@: recursion)
+  _ -> error "eval: tipo incorrecto"
 
 ----------------------
 --- type checker
