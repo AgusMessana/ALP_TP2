@@ -53,16 +53,16 @@ sub _ _ (Free n) = Free n
 sub i t (u :@: v) = sub i t u :@: sub i t v
 sub i t (Lam t' u) = Lam t' (sub (i + 1) t u)
 sub i t (Let t1 t2) = Let (sub i t t1) (sub (i + 1) t t2)
-sub _ _ (Zero) = Zero 
+sub _ _ Zero = Zero
 sub i t (Suc u) = Suc (sub i t u)
-sub i t (Rec t1 t2 t3) =  Rec (sub i t t1) (sub i t t2) (sub i t t3)
+sub i t (Rec t1 t2 t3) = Rec (sub i t t1) (sub i t t2) (sub i t t3)
 
 -- convierte un valor en el término equivalente
 quote :: Value -> Term
 quote (VLam t f) = Lam t f
-quote (VNum n) = case n of 
-                NZero -> Zero 
-                NSuc m -> Suc (quote (VNum m))
+quote (VNum n) = case n of
+  NZero -> Zero
+  NSuc m -> Suc (quote (VNum m))
 
 -- evalúa un término en un entorno dado
 eval :: NameEnv Value Type -> Term -> Value
@@ -75,18 +75,17 @@ eval env (Free n) = case lookup n env of
   Just (val, _) -> val
 eval _ (Lam ty te) = VLam ty te
 eval env (Let t1 t2) = let v = eval env t1 in eval env (sub 0 (quote v) t2)
-eval env (Zero) = VNum NZero 
+eval env Zero = VNum NZero
 eval env (Suc t) = case eval env t of
-  VNum n -> (VNum (NSuc n))
+  VNum n -> VNum (NSuc n)
   _ -> error "eval: tipo incorrecto"
-eval env (Rec t1 t2 Zero) = eval env t1 
-eval env (Rec t1 t2 (Suc t)) =  eval env (t2 :@: (R t1 t2 t)) :@: t
-eval env (Rec t1 t2 t3) = case eval env t3 of 
-                          VNum (NZero)  -> eval env t1 
-                          VNum (NSuc n) ->  let n_anterior = quote (VNum n) 
-                                                recursion = Rec t1 t2 n_anterior
-                                                in eval env ((t2 :@: recursion) :@: n_anterior)
-                            _ -> error "eval: se esperaba un natural"
+eval env (Rec t1 t2 t3) = case eval env t3 of
+  VNum NZero -> eval env t1
+  VNum (NSuc n) ->
+    let n_anterior = quote (VNum n)
+        recursion = Rec t1 t2 n_anterior
+     in eval env ((t2 :@: recursion) :@: n_anterior)
+  _ -> error "eval: dato no posible"
 
 ----------------------
 --- type checker
@@ -137,12 +136,21 @@ infer' c e (t :@: u) =
         FunT t1 t2 -> if (tu == t1) then ret t2 else matchError t1 tu
         _ -> notfunError tt
 infer' c e (Lam t u) = infer' (t : c) e u >>= \tu -> ret $ FunT t tu
-infer' c e (Let t1 t2) = 
+infer' c e (Let t1 t2) =
   infer' c e t1 >>= \tt ->
     infer' (tt : c) e t2
-infer' c e Zero = NatT
+infer' _ _ Zero = Right NatT
 infer' c e (Suc n) = case infer' c e n of
   Right NatT -> Right NatT
   Right t -> matchError NatT t
   Left err -> Left err
-infer' c e (Rec t1 t2 t3) =  
+infer' c e (Rec t1 t2 t3) =
+  infer' c e t1 >>= \tt1 ->
+    infer' c e t2 >>= \tt2 ->
+      if tt2 == FunT tt1 (FunT NatT tt1)
+        then
+          infer' c e t3 >>= \tt3 ->
+            if tt3 == NatT
+              then ret tt1
+              else matchError NatT tt3
+        else matchError (FunT tt1 (FunT NatT tt1)) tt2
