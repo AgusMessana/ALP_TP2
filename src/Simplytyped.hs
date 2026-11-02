@@ -38,7 +38,6 @@ conversionAux (LSuc t) pila = Suc (conversionAux t pila)
 conversionAux (LNil) pila = Nil
 conversionAux (LCons t1 t2) pila = Cons (conversionAux t1 pila) (conversionAux t2 pila)
 conversionAux (LRL t1 t2 t3) pila = RL (conversionAux t1 pila) (conversionAux t2 pila) (conversionAux t3 pila)
-
 conversion :: LamTerm -> Term
 conversion t = conversionAux t []
 
@@ -173,3 +172,24 @@ infer' c e (Rec t1 t2 t3) =
               then ret tt1
               else matchError NatT tt3
         else matchError (FunT tt1 (FunT NatT tt1)) tt2
+infer' _ _ Nil = Right ListT
+infer' c e (Cons t1 t2) =
+  infer' c e t1 >>= \tt1 ->
+    infer' c e t2 >>= \tt2 ->
+      if tt1 == NatT
+        then
+          if tt2 == ListT
+            then ret ListT
+            else matchError ListT tt2
+        else
+          matchError NatT tt1
+infer' c e (RL t1 t2 t3) =
+  infer' c e t1 >>= \tt1 ->
+    infer' c e t2 >>= \tt2 ->
+      if tt2 == FunT NatT (FunT tt1 tt1)
+        then
+          infer' c e t3 >>= \tt3 ->
+            if tt3 == ListT
+              then ret tt1
+              else matchError ListT tt3
+        else matchError (FunT NatT (FunT tt1 tt1)) tt2
