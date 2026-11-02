@@ -1,0 +1,19 @@
+-- Funciones auxiliares sobre naturales (1 = verdadero, 0 = falso)
+def pred = \m:Nat. R 0 (\r:Nat. \p:Nat. p) m
+
+def suma = \m:Nat. \n:Nat. R m (\r:Nat. \p:Nat. suc r) n
+
+def resta = \m:Nat. \n:Nat. R m (\r:Nat. \p:Nat. pred r) n
+
+def esCero = \m:Nat. R (suc 0) (\r:Nat. \p:Nat. 0) m
+
+def iguales = \m:Nat. \n:Nat. esCero (suma (resta m n) (resta n m))
+
+-- si b x y: devuelve x si b es 1, y si b es 0
+def si = \b:Nat. \x:List Nat. \y:List Nat. R y (\r:List Nat. \p:Nat. x) b
+
+-- quitar x xs: saca todas las apariciones de x en xs
+def quitar = \x:Nat. \xs:List Nat. RL nil (\h:Nat. \r:List Nat. si (iguales h x) r (cons h r)) xs
+
+-- elimDups: deja la primera aparición de cada elemento
+def elimDups = \xs:List Nat. RL nil (\h:Nat. \r:List Nat. cons h (quitar h r)) xs
